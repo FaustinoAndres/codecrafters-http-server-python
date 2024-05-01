@@ -23,9 +23,18 @@ def parse_request(data: bytes) -> Request:
     )
 
 
-def send_response(conn: socket.socket, status: int):
+def send_response(conn: socket.socket, path: str):
 
-    conn.send(bytes(f"HTTP/1.1 {status} OK\r\n\r\n", "utf-8"))
+    if path == "/":
+        status = 200
+        conn.send(bytes(f"HTTP/1.1 {status} OK\r\n\r\n", "utf-8"))
+    if '/echo/' in path:
+        status = 200
+        text = path.replace('/echo/', '')
+        conn.send(bytes(f"HTTP/1.1 {status} OK\r\nContent-Type: text/plain\r\nContent-Length: {len(text)}\r\n\r\n{text}\r\n", "utf-8"))
+    else:
+        status = 404
+        conn.send(bytes(f"HTTP/1.1 {status} Not Found\r\n\r\n", "utf-8"))
 
 
 def main():
@@ -35,13 +44,7 @@ def main():
 
     data = connection.recv(1024)
     req = parse_request(data)
-    print(req)
-
-    if req.path == "/":
-        send_response(connection, 200)
-    else:
-        send_response(connection, 404)
-
+    send_response(connection, req.path)
     connection.close()
     server_socket.close()
 
