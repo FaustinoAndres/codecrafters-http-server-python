@@ -1,4 +1,5 @@
 import socket
+import threading
 from dataclasses import dataclass
 
 
@@ -37,8 +38,7 @@ def send_response(conn: socket.socket, request: Request):
         conn.send(bytes(f"HTTP/1.1 {status} OK\r\n\r\n", "utf-8"))
     elif path == "/user-agent":
         status = 200
-        text = user_agent
-        conn.send(bytes(f"HTTP/1.1 {status} OK\r\nContent-Type: text/plain\r\nContent-Length: {len(text)}\r\n\r\n{text}\r\n", "utf-8"))
+        conn.send(bytes(f"HTTP/1.1 {status} OK\r\nContent-Type: text/plain\r\nContent-Length: {len(user_agent)}\r\n\r\n{user_agent}\r\n", "utf-8"))
     elif '/echo/' in path:
         status = 200
         text = path.replace('/echo/', '')
@@ -48,15 +48,22 @@ def send_response(conn: socket.socket, request: Request):
         conn.send(bytes(f"HTTP/1.1 {status} Not Found\r\n\r\n", "utf-8"))
 
 
-def main():
-
-    server_socket = socket.create_server(("localhost", 4221), reuse_port=True)
-    connection, address = server_socket.accept()  # wait for client
-
+def generate_response(connection):
     data = connection.recv(1024)
     req = parse_request(data)
     send_response(connection, req)
     connection.close()
+
+
+def main():
+
+    server_socket = socket.create_server(("localhost", 4221), reuse_port=True)
+
+    while True:
+        connection, address = server_socket.accept()  # wait for client
+        client_thread = threading.Thread(target=generate_response, args=(connection,))
+        client_thread.start()
+
     server_socket.close()
 
 
