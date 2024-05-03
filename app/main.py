@@ -48,11 +48,14 @@ def send_response(conn: socket.socket, request: Request, directory: str):
     elif directory and path.startswith('/files/'):
         file = path.split('/')[-1]
         if os.path.exists(f'{directory}/{file}'):
+            text = None
             with open(f'{directory}/{file}') as f:
                 text = f.read()
-                status = 200
-                conn.send(bytes(f"HTTP/1.1 {status} OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {len(text)}\r\n\r\n{text}\r\n", "utf-8"))
-        # application/octet-stream
+            status = 200
+            conn.send(bytes(f"HTTP/1.1 {status} OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {len(text)}\r\n\r\n{text}\r\n", "utf-8"))
+        else:
+            status = 404
+            conn.send(bytes(f"HTTP/1.1 {status} Not Found\r\n\r\n", "utf-8"))
     else:
         status = 404
         conn.send(bytes(f"HTTP/1.1 {status} Not Found\r\n\r\n", "utf-8"))
