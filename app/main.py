@@ -1,5 +1,7 @@
+import os
 import socket
 import threading
+import argparse
 from dataclasses import dataclass
 
 
@@ -28,7 +30,7 @@ def parse_request(data: bytes) -> Request:
     )
 
 
-def send_response(conn: socket.socket, request: Request):
+def send_response(conn: socket.socket, request: Request, directory: str):
 
     path = request.path
     user_agent = request.user_agent
@@ -43,29 +45,53 @@ def send_response(conn: socket.socket, request: Request):
         status = 200
         text = path.replace('/echo/', '')
         conn.send(bytes(f"HTTP/1.1 {status} OK\r\nContent-Type: text/plain\r\nContent-Length: {len(text)}\r\n\r\n{text}\r\n", "utf-8"))
+    elif directory and path.startswith('/files/'):
+        file = path.split('/')[-1]
+        if os.path.exists(f'{directory}/{file}'):
+            with open(f'{directory}/{file}') as f:
+                text = f.read()
+                status = 200
+                conn.send(bytes(f"HTTP/1.1 {status} OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {len(text)}\r\n\r\n{text}\r\n", "utf-8"))
+        # application/octet-stream
     else:
         status = 404
         conn.send(bytes(f"HTTP/1.1 {status} Not Found\r\n\r\n", "utf-8"))
 
 
-def generate_response(connection):
+def validate_directory(directory):
+    if not os.path.isdir(directory):
+        raise ValueError("Directory not found")
+
+
+def generate_response(connection, directory):
     data = connection.recv(1024)
     req = parse_request(data)
-    send_response(connection, req)
+    send_response(connection, req, directory)
     connection.close()
 
 
 def main():
 
+    directory = parse_arg()
+    if directory:
+        validate_directory(directory)
     server_socket = socket.create_server(("localhost", 4221), reuse_port=True)
 
     while True:
         connection, address = server_socket.accept()  # wait for client
-        client_thread = threading.Thread(target=generate_response, args=(connection,))
+        client_thread = threading.Thread(target=generate_response, args=(connection, directory))
         client_thread.start()
 
     server_socket.close()
 
 
+def parse_arg():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--directory', type=str, required=False)
+    args = parser.parse_args()
+    return args.directory if args.directory else None
+
+
 if __name__ == "__main__":
+
     main()
