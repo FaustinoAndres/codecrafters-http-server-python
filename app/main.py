@@ -23,6 +23,7 @@ class Request:
 def parse_request(data: bytes) -> Request:
     data = data.decode()
     http_request = data.split('\r\n')
+    print(http_request)
     header = http_request[0].split(' ')
     method = header[0]
     path = header[1]
@@ -86,6 +87,7 @@ def send_post_response(conn, request, directory):
     content = request.content
     print(content)
     if directory and path.startswith('/files/'):
+        print(content)
         file = path.split('/')[-1]
         with open(f'{directory}/{file}', 'wb') as f:
             for line in content:
