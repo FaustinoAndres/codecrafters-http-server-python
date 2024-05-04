@@ -91,6 +91,9 @@ def send_post_response(conn, request, directory):
                 f.write(line + "\n")
         status = 201
         conn.send(bytes(f"HTTP/1.1 {status} Created\r\n\r\n", "utf-8"))
+        return
+    status = 404
+    conn.send(bytes(f"HTTP/1.1 {status} Not Found\r\n\r\n", "utf-8"))
 
 
 def validate_directory(directory):
