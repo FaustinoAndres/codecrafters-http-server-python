@@ -15,15 +15,12 @@ class Request:
     protocol: str
     host: str
     user_agent: str
-    content_length: Union[str, NoneType]
-    content_application: Union[str, NoneType]
     content: Union[list, NoneType]
 
 
 def parse_request(data: bytes) -> Request:
     data = data.decode()
     http_request = data.split('\r\n')
-    print(http_request)
     header = http_request[0].split(' ')
     method = header[0]
     path = header[1]
@@ -31,13 +28,10 @@ def parse_request(data: bytes) -> Request:
     host = http_request[1].lower().lstrip('host: ')
     user_agent = http_request[2].lower().lstrip('user-agent: ')
 
-    content_length = None
-    content_application = None
     content = None
     if 'POST' == method:
-        content_length = http_request[4].lower().lstrip('content-length: ')
-        content_application = http_request[5].lower().lstrip('content-type: ')
-        content = http_request[7:]
+        index_content = http_request.index('') + 1
+        content = http_request[index_content:]
 
     return Request(
         method=method,
@@ -45,8 +39,6 @@ def parse_request(data: bytes) -> Request:
         protocol=protocol,
         host=host,
         user_agent=user_agent,
-        content_length=content_length,
-        content_application=content_application,
         content=content,
     )
 
@@ -85,9 +77,7 @@ def send_get_response(conn: socket.socket, request: Request, directory: str):
 def send_post_response(conn, request, directory):
     path = request.path
     content = request.content
-    print(content)
     if directory and path.startswith('/files/'):
-        print(content)
         file = path.split('/')[-1]
         with open(f'{directory}/{file}', 'wb') as f:
             for line in content:
@@ -107,7 +97,6 @@ def validate_directory(directory):
 def generate_response(connection, directory):
     data = connection.recv(1024)
     req = parse_request(data)
-    print(req)
     if req.method == "GET":
         send_get_response(connection, req, directory)
     elif req.method == "POST":
