@@ -84,11 +84,12 @@ def send_get_response(conn: socket.socket, request: Request, directory: str):
 def send_post_response(conn, request, directory):
     path = request.path
     content = request.content
+    print(content)
     if directory and path.startswith('/files/'):
         file = path.split('/')[-1]
-        with open(f'{directory}/{file}', 'w') as f:
+        with open(f'{directory}/{file}', 'wb') as f:
             for line in content:
-                f.write(line)
+                f.write(f'{line}\n'.encode())
         status = 201
         conn.send(bytes(f"HTTP/1.1 {status} Created\r\n\r\n", "utf-8"))
         return
