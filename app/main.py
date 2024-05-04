@@ -88,7 +88,7 @@ def send_post_response(conn, request, directory):
         file = path.split('/')[-1]
         with open(f'{directory}/{file}', 'w') as f:
             for line in content:
-                f.write(line + "\n")
+                f.write(line)
         status = 201
         conn.send(bytes(f"HTTP/1.1 {status} Created\r\n\r\n", "utf-8"))
         return
