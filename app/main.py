@@ -2,7 +2,10 @@ import os
 import socket
 import threading
 import argparse
+from typing import Union
 from dataclasses import dataclass
+
+NoneType = type(None)
 
 
 @dataclass
@@ -12,25 +15,42 @@ class Request:
     protocol: str
     host: str
     user_agent: str
+    content_length: Union[str, NoneType]
+    content_application: Union[str, NoneType]
+    content: Union[list, NoneType]
 
 
 def parse_request(data: bytes) -> Request:
     data = data.decode()
     http_request = data.split('\r\n')
     header = http_request[0].split(' ')
+    method = header[0]
+    path = header[1]
+    protocol = header[2]
     host = http_request[1].lower().lstrip('host: ')
     user_agent = http_request[2].lower().lstrip('user-agent: ')
 
+    content_length = None
+    content_application = None
+    content = None
+    if 'POST' == method:
+        content_length = http_request[4].lower().lstrip('content-length: ')
+        content_application = http_request[5].lower().lstrip('content-type: ')
+        content = http_request[7:]
+
     return Request(
-        method=header[0],
-        path=header[1],
-        protocol=header[2],
+        method=method,
+        path=path,
+        protocol=protocol,
         host=host,
-        user_agent=user_agent
+        user_agent=user_agent,
+        content_length=content_length,
+        content_application=content_application,
+        content=content,
     )
 
 
-def send_response(conn: socket.socket, request: Request, directory: str):
+def send_get_response(conn: socket.socket, request: Request, directory: str):
 
     path = request.path
     user_agent = request.user_agent
@@ -61,6 +81,18 @@ def send_response(conn: socket.socket, request: Request, directory: str):
         conn.send(bytes(f"HTTP/1.1 {status} Not Found\r\n\r\n", "utf-8"))
 
 
+def send_post_response(conn, request, directory):
+    path = request.path
+    content = request.content
+    if directory and path.startswith('/files/'):
+        file = path.split('/')[-1]
+        with open(f'{directory}/{file}', 'w') as f:
+            for line in content:
+                f.write(line + "\n")
+        status = 201
+        conn.send(bytes(f"HTTP/1.1 {status} Created\r\n\r\n", "utf-8"))
+
+
 def validate_directory(directory):
     if not os.path.isdir(directory):
         raise ValueError("Directory not found")
@@ -69,7 +101,11 @@ def validate_directory(directory):
 def generate_response(connection, directory):
     data = connection.recv(1024)
     req = parse_request(data)
-    send_response(connection, req, directory)
+    print(req)
+    if req.method == "GET":
+        send_get_response(connection, req, directory)
+    elif req.method == "POST":
+        send_post_response(connection, req, directory)
     connection.close()
 
 
